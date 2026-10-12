@@ -1,6 +1,22 @@
 package main
 
 func RunPipeline(cmds ...cmd) {
+	var in chan interface{}
+
+	for i, command := range cmds {
+		out := make(chan interface{})
+
+		if i == len(cmds)-1 {
+			command(in, out)
+		} else {
+			go func(job cmd, input, output chan interface{}) {
+				job(input, output)
+				close(output)
+			}(command, in, out)
+			in = out
+		}
+
+	}
 
 }
 
