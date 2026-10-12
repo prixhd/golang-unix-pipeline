@@ -1,5 +1,7 @@
 package main
 
+import "sync"
+
 func RunPipeline(cmds ...cmd) {
 	var in chan interface{}
 
@@ -23,6 +25,32 @@ func RunPipeline(cmds ...cmd) {
 func SelectUsers(in, out chan interface{}) {
 	// 	in - string
 	// 	out - User
+	var wg sync.WaitGroup
+	seen := make(map[uint64]bool)
+	var mu sync.Mutex
+
+	for email := range in {
+		wg.Add(1)
+		go func(email interface{}) {
+			defer wg.Done()
+			user := GetUser(email.(string))
+			var isNew bool
+
+			mu.Lock()
+			if !seen[user.ID] {
+				seen[user.ID] = true
+				isNew = true
+			}
+			mu.Unlock()
+
+			if isNew {
+				out <- user
+			}
+
+		}(email)
+	}
+	wg.Wait()
+
 }
 
 func SelectMessages(in, out chan interface{}) {
